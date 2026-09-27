@@ -16,14 +16,37 @@ let saved = dev.prefs;
 let raf = 0;
 let last = 0;
 
-export const useGame = create(() => ({ view: device.view(dev, null) }));
+// The model button each input moves, so keys animate the same buttons as taps.
+const INPUT_BUTTON = {
+  power: "onoff",
+  start: "sp",
+  pause: "sp",
+  sound: "sound",
+  reset: "reset",
+  left: "left",
+  right: "right",
+  down: "down",
+  drop: "up",
+  cw: "rotate",
+  ccw: "rotate",
+};
+const held = new Map(); // source → button name
+
+// keys: names of the model buttons held down right now
+export const useGame = create(() => ({ view: device.view(dev, null), keys: new Set() }));
 
 export function press(input, source) {
   unlockAudio();
+  const button = INPUT_BUTTON[input];
+  if (button && held.get(source) !== button) {
+    held.set(source, button);
+    syncKeys();
+  }
   apply(input, source);
 }
 
 export function release(source) {
+  if (held.delete(source)) syncKeys();
   device.release(dev, source);
   sync();
 }
@@ -39,7 +62,10 @@ export function bindInput() {
     if (device.KEYMAP[e.code]) release(e.code);
   };
   const onPointerUp = (e) => release("p" + e.pointerId);
-  const onHide = () => apply("hide");
+  const onHide = () => {
+    releaseKeys();
+    apply("hide");
+  };
   const onVisibility = () => {
     if (document.hidden) onHide();
   };
@@ -61,9 +87,21 @@ export function bindInput() {
     window.removeEventListener("blur", onHide);
     document.removeEventListener("visibilitychange", onVisibility);
     window.removeEventListener("pagehide", onPageHide);
+    releaseKeys();
     device.releaseAll(dev);
     sync();
   };
+}
+
+function syncKeys() {
+  useGame.setState({ keys: new Set(held.values()) });
+}
+
+// keyup and pointerup never arrive once the window has lost focus
+function releaseKeys() {
+  if (!held.size) return;
+  held.clear();
+  syncKeys();
 }
 
 function apply(input, source) {
