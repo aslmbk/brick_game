@@ -20,6 +20,33 @@ const SMALL = { reach: 0.3, depth: 0.027 };
 const SIZES = { rotate: BIG, left: PAD, right: PAD, up: PAD, down: PAD, onoff: SMALL, sp: SMALL, sound: SMALL, reset: SMALL };
 const MIN_HOLD_MS = 70; // a quick tap still shows the press
 
+// Studio materials. Absolute values only: the loaded model is cached and may be tuned twice.
+function tune(scene) {
+  scene.traverse((o) => {
+    const m = o.material;
+    if (!m) return;
+    if (m.name === "Material") {
+      // body: plastic, not metal
+      m.metalness = 0;
+      m.roughness = 0.42;
+    } else if (m.name === "Material.003") {
+      // printed labels and the screen frame: lit by the room instead of glowing
+      m.metalness = 0;
+      m.roughness = 0.45;
+      m.emissive.setScalar(0.03);
+    } else if (m.name === "Material.002") {
+      // buttons: glossy rubber
+      m.roughness = 0.38;
+      m.specularColor.setScalar(1);
+    }
+  });
+}
+
+// the page shows a loader until the console is on screen
+function hideLoader() {
+  document.getElementById("loader")?.classList.add("done");
+}
+
 export default function Device() {
   const gltf = useLoader(GLTFLoader, MODEL_URL, (loader) => loader.setDRACOLoader(draco));
   const get = useThree((s) => s.get);
@@ -29,20 +56,20 @@ export default function Device() {
     const texture = new CanvasTexture(canvas);
     texture.colorSpace = SRGBColorSpace;
     texture.anisotropy = 4;
-    const material = new MeshStandardMaterial({ map: texture, roughness: 0.28, metalness: 0 });
+    // the reflector behind a real LCD is brighter than painted plastic
+    const material = new MeshStandardMaterial({ map: texture, roughness: 0.16, metalness: 0, envMapIntensity: 1.3 });
     return { draw: createLcd(canvas), texture, material, rev: 0 };
   }, []);
 
-  const buttons = useMemo(
-    () =>
-      Object.keys(SIZES).map((name) => {
-        const node = gltf.scene.getObjectByName(name);
-        node.userData.z ??= node.position.z; // the cached model may come back mid-press after a remount
-        node.position.z = node.userData.z;
-        return { name, node, x: node.position.x, y: node.position.y, z: node.userData.z, ...SIZES[name], p: 0, held: false, since: -Infinity };
-      }),
-    [gltf],
-  );
+  const buttons = useMemo(() => {
+    tune(gltf.scene);
+    return Object.keys(SIZES).map((name) => {
+      const node = gltf.scene.getObjectByName(name);
+      node.userData.z ??= node.position.z; // the cached model may come back mid-press after a remount
+      node.position.z = node.userData.z;
+      return { name, node, x: node.position.x, y: node.position.y, z: node.userData.z, ...SIZES[name], p: 0, held: false, since: -Infinity };
+    });
+  }, [gltf]);
 
   useEffect(() => {
     draco.dispose(); // the model is decoded: stop the decoder workers
@@ -73,6 +100,7 @@ export default function Device() {
   useFrame((state, delta) => {
     const { view } = useGame.getState();
     if (view.rev !== lcd.rev) {
+      if (!lcd.rev) hideLoader();
       lcd.rev = view.rev;
       lcd.draw(view);
       lcd.texture.needsUpdate = true;
@@ -87,7 +115,7 @@ export default function Device() {
       if (b.p !== target) {
         const k = down ? 40 : 18;
         b.p += (target - b.p) * (1 - Math.exp(-k * dt));
-        if (Math.abs(target - b.p) < 0.002) b.p = target;
+        if (Math.abs(target - b.p) < 0.01) b.p = target; // the last 1% of travel is under a pixel
         b.node.position.z = b.z - b.depth * b.p;
       }
       // keep drawing until the button settles and a short tap has had its minimum hold

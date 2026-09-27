@@ -94,10 +94,12 @@ function allLit() {
 }
 
 function drawReflector(c) {
+  // #bdbe9e → #b8b898 → #aaab8b, pre-tinted against the warm studio light so the
+  // screen still reads as the original grey-green #b8b898 on the rendered image
   const bg = c.createRadialGradient(250, 260, 0, 250, 260, 520);
-  bg.addColorStop(0, "#bdbe9e");
-  bg.addColorStop(0.5, "#b8b898");
-  bg.addColorStop(1, "#aaab8b");
+  bg.addColorStop(0, "#bbc8ae");
+  bg.addColorStop(0.5, "#b6c2a7");
+  bg.addColorStop(1, "#a8b499");
   c.fillStyle = bg;
   c.fillRect(0, 0, LCD_W, LCD_H);
 
