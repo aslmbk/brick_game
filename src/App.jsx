@@ -1,96 +1,73 @@
-/* eslint-disable react/no-unknown-property */
-import { Canvas, useThree } from "@react-three/fiber";
-import "./App.css";
-import { useLoader } from "@react-three/fiber";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
-import { Center, Html } from "@react-three/drei";
-import Tetris from "./components/tetris/Tetris";
-import { useCallback, useRef } from "react";
-import { downKey, leftKey, onOffKey, resetKey, rightKey, rotateKey, sPKey, upKey } from "../store/consts";
-import { useStore } from "../store/store";
+import { Component, Suspense, useEffect, useState } from "react";
+import { Canvas } from "@react-three/fiber";
+import { ContactShadows } from "@react-three/drei";
+import { bindInput } from "./game/store";
+import Device from "./scene/Device";
+import Studio from "./scene/Studio";
 
-function Thing() {
-  const ref = useRef(null);
-  const model = useLoader(GLTFLoader, "./tetris3.0.d.glb", (loader) => {
-    const dracoLoader = new DRACOLoader();
-    dracoLoader.setDecoderPath("./draco/");
-    loader.setDRACOLoader(dracoLoader);
-  });
-  const { rotate, moveLeftRight, down, setPause, reset, setOnOff } = useStore();
+const SHADOW_SCALE = [6, 3]; // stable reference: ContactShadows rebuilds its targets when scale changes
+const preventMenu = (e) => e.preventDefault(); // long press on a button must not open a menu
 
-  const { viewport } = useThree();
+// No WebGL or no model: say so in the loader instead of leaving an empty page.
+class ErrorBoundary extends Component {
+  state = { failed: false };
 
-  const onPointerDown = useCallback((ev) => {
-    const name = ev.object.name;
-    switch (name) {
-      case rotateKey:
-        rotate();
-        break;
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
 
-      case leftKey:
-        moveLeftRight(-1);
-        break;
+  componentDidCatch(error) {
+    const loader = document.getElementById("loader");
+    if (!loader) return;
+    loader.className = "failed";
+    loader.querySelector("p").textContent = /webgl/i.test(String(error?.message))
+      ? "This browser can't show 3D graphics: WebGL is turned off or not supported."
+      : "The console didn't load. Check your connection and reload the page.";
+  }
 
-      case rightKey:
-        moveLeftRight(1);
-        break;
-
-      case upKey:
-      case downKey:
-        down();
-        break;
-
-      case sPKey:
-        setPause();
-        break;
-
-      case onOffKey:
-        setOnOff();
-        break;
-
-      case resetKey:
-        reset();
-        break;
-
-      default:
-        break;
-    }
-  }, [rotate, moveLeftRight, down, setPause, reset, setOnOff]);
-
-
-  return (<Center onCentered={({ container, height, width }) => {
-    container.scale.setScalar(viewport.height / height - 0.04);
-    if (viewport.width < width) {
-      container.scale.setScalar(viewport.width / width - 0.08);
-    }
-  }}>
-    <group ref={ref} scaleScalar={2}>
-      <primitive onPointerDown={onPointerDown} object={model.scene} />
-      <Html style={{ pointerEvents: "none", width: 260 }} zIndexRange={[1, 0]} distanceFactor={3.45} transform position={[-0.07, 6.45, 0]} center>
-        <Tetris />
-      </Html>
-    </group>
-  </Center>
-  );
+  render() {
+    return this.state.failed ? null : this.props.children;
+  }
 }
 
-{ /* <Center onCentered={({ container, height, width }) => {
-      container.scale.setScalar(viewport.height / height - 0.04);
-      if (viewport.width < width) {
-        container.scale.setScalar(viewport.width / width - 0.08);
-      }
-    }}></Center> */ }
-
 function App() {
+  const [epoch, setEpoch] = useState(0);
+  useEffect(bindInput, []);
+
+  const onCreated = (state) => {
+    // three restores buffers and textures itself; baked maps have to be rendered again
+    state.gl.domElement.addEventListener("webglcontextrestored", () => setEpoch((n) => n + 1));
+    if (import.meta.env.DEV) window.__r3f = state;
+  };
 
   return (
-    <Canvas>
-      <color args={[ "#141109" ]} attach="background" />
-      <ambientLight intensity={2.1} />
-      <directionalLight position={[1, 2, 3]} />
-      <Thing />
-    </Canvas>
+    <ErrorBoundary>
+      <Canvas
+        frameloop="demand"
+        camera={{ fov: 30 }}
+        gl={{ powerPreference: "default" }}
+        style={{ touchAction: "none" }}
+        onContextMenu={preventMenu}
+        onCreated={onCreated}
+      >
+        <Studio epoch={epoch} />
+        <Suspense fallback={null}>
+          <Device />
+          {/* rendered once, in the same frame the model appears */}
+          <ContactShadows
+            key={epoch}
+            frames={1}
+            resolution={256}
+            position={[0, 0, 0]}
+            scale={SHADOW_SCALE}
+            far={1.2}
+            blur={2.4}
+            opacity={0.65}
+            color="#140a04"
+          />
+        </Suspense>
+      </Canvas>
+    </ErrorBoundary>
   );
 }
 

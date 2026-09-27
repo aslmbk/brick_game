@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "test": "node --test",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "deploy": "vercel --prod"
@@ -13,22 +14,21 @@
   "dependencies": {
     "@react-three/drei": "^9.80.1",
     "@react-three/fiber": "^8.13.6",
-    "@types/three": "^0.155.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-spring": "^9.7.2",
     "three": "^0.155.0",
-    "vercel": "^31.2.1",
     "zustand": "^4.4.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.15",
     "@types/react-dom": "^18.2.7",
+    "@types/three": "^0.155.0",
     "@vitejs/plugin-react": "^4.0.3",
     "eslint": "^8.45.0",
     "eslint-plugin-react": "^7.32.2",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.3",
+    "vercel": "^31.2.1",
     "vite": "^4.4.5"
   }
 }
