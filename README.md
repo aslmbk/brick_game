@@ -33,6 +33,8 @@ Keys work in any keyboard layout. The game pauses when the tab is hidden or the 
 
 ## Development
 
+Needs Node.js 24 (the current LTS, the newest version Vercel builds with).
+
 ```bash
 npm install
 npm run dev      # dev server
@@ -46,4 +48,4 @@ Code:
 
 - `src/game/` — the game without any UI: rules (`engine.js`), console modes and settings (`device.js`), input, timing, sound and saving (`store.js`, `sfx.js`), tests.
 - `src/scene/` — the 3D scene: model, LCD drawn into a canvas texture, buttons, camera and studio lighting. The scene renders only when something changes.
-- `src/assets/brick-game.glb` — the Draco-compressed model; the decoder lives in `public/draco/r155/` (rename the folder when three.js is upgraded: it is cached for a year).
+- `src/assets/brick-game.glb` — the Draco-compressed model; its decoder comes from the installed three.js and is bundled at build time.

@@ -2,17 +2,16 @@
 import { useEffect, useMemo } from "react";
 import { useFrame, useLoader, useThree } from "@react-three/fiber";
 import { CanvasTexture, MeshStandardMaterial, SRGBColorSpace } from "three";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { DRACO_GLTF_CONFIG, DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { BUTTONS } from "../game/device";
 import { press, useGame } from "../game/store";
-import { continueFrames, requestFrame } from "./frame";
 import { createLcd } from "./lcd";
 // hashed file name; index.html preloads the same URL so the download starts before this script runs
 import MODEL_URL from "../assets/brick-game.glb?url";
 
-// the folder is named after the three.js release the decoder ships with: rename it on upgrade (it is cached forever)
-const draco = new DRACOLoader().setDecoderPath("/draco/r155/");
+// the lean glTF decoder from the installed three, bundled into assets/ with hashed names
+const draco = new DRACOLoader().setDecoderPath(DRACO_GLTF_CONFIG);
 draco.preload(); // fetch the decoder while the model downloads
 
 // How far each button reaches for a tap and how deep it goes when pressed.
@@ -51,7 +50,7 @@ function hideLoader() {
 
 export default function Device() {
   const gltf = useLoader(GLTFLoader, MODEL_URL, (loader) => loader.setDRACOLoader(draco));
-  const get = useThree((s) => s.get);
+  const invalidate = useThree((s) => s.invalidate);
 
   const lcd = useMemo(() => {
     const canvas = document.createElement("canvas");
@@ -95,11 +94,14 @@ export default function Device() {
     onKeys(useGame.getState());
     return useGame.subscribe((state, prev) => {
       if (state.keys !== prev.keys) onKeys(state);
-      requestFrame(get());
+      invalidate();
     });
-  }, [buttons, get]);
+  }, [buttons, invalidate]);
 
   useFrame((state, delta) => {
+    // three ignores envMapIntensity for scene.environment: the LCD takes the map itself
+    if (lcd.material.envMap !== state.scene.environment) lcd.material.envMap = state.scene.environment;
+
     const { view } = useGame.getState();
     if (view.rev !== lcd.rev) {
       if (!lcd.rev) hideLoader();
@@ -123,7 +125,7 @@ export default function Device() {
       // keep drawing until the button settles and a short tap has had its minimum hold
       if (b.p !== target || (!b.held && down)) busy = true;
     }
-    if (busy) continueFrames(state);
+    if (busy) state.invalidate();
   });
 
   const nearest = (point) => {
