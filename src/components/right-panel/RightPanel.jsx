@@ -1,59 +1,53 @@
 import "./RightPanel.css";
 import { GridCell } from "../grid-cell/GridCell";
-import { useStore } from "../../../store/store";
-import { useMemo } from "react";
-import { deepCopy } from "../../../store/utils";
-import { blocks } from "../../../store/consts";
+import { useGame } from "../../game/store";
 
-const rows = new Array(4).fill(new Array(4).fill(0));
+const SIDE = [0, 1, 2, 3];
+const INFO = {
+  title: "Press Start",
+  pause: "Pause",
+  ending: "Game Over",
+  over: <>Game Over<br />Press Start</>,
+};
 
 export const RightPanel = () => {
-  const { level, score, highScore, pause, gameOver, nextBlockIndex, onOff, getReady } = useStore();
-  const info = useMemo(() => {
-    if (gameOver) {
-      return <div>Game Over<br />Press Start</div>;
-    }
-    if (getReady) {
-      return <div className="counter">{getReady}</div>;
-    }
-    if (pause) {
-      return "Pause";
-    }
-    return "Play";
-  }, [pause, gameOver, getReady]);
-
-  const grid = useMemo(() => {
-    const g = deepCopy(rows);
-    if (nextBlockIndex) {
-      blocks[nextBlockIndex].forEach(([col, row]) => {
-        g[col + 1][row - 3] = 1;
-      });
-    }
-    return g;
-  }, [nextBlockIndex]);
+  const mode = useGame((s) => s.view.mode);
+  const next = useGame((s) => s.view.next);
+  const level = useGame((s) => s.view.level);
+  const score = useGame((s) => s.view.score);
+  const hiScore = useGame((s) => s.view.hiScore);
+  const lines = useGame((s) => s.view.lines);
+  const off = mode === "off";
 
   return (
     <div className="right-panel">
       <div className="next-figure">
-        {grid.map((row, i) => (
-          <div key={i} className="row">
-            {row.map((elem, index) => (
-              <GridCell key={index} opacity={elem ? 1 : 0.03} />
-            ))}
+        {/* the 2×4 preview sits in the middle rows of a 4×4 box */}
+        {SIDE.map((r) => (
+          <div key={r} className="row">
+            {SIDE.map((c) => {
+              const lit = (r === 1 || r === 2) && next[(r - 1) * 4 + c];
+              return <GridCell key={c} opacity={off ? 0 : lit ? 1 : 0.03} />;
+            })}
           </div>
         ))}
       </div>
 
-      { onOff && <><div className="stat-row">Level</div>
+      {!off && <>
+        <div className="stat-row">Level</div>
         <div className="stat-value">{level}</div>
 
         <div className="stat-row">Score</div>
         <div className="stat-value">{score}</div>
 
         <div className="stat-row">High score</div>
-        <div className="stat-value">{highScore}</div>
+        <div className="stat-value">{hiScore}</div>
 
-        <div className="info">{info}</div>
-      </>}</div>
+        <div className="stat-row">Lines</div>
+        <div className="stat-value">{lines}</div>
+
+        <div className="info">{INFO[mode]}</div>
+      </>}
+    </div>
   );
 };

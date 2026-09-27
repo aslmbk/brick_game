@@ -1,26 +1,23 @@
-import { useEffect } from "react";
-import { useStore } from "../../../store/store";
+import { useGame } from "../../game/store";
 import { GridCell } from "../grid-cell/GridCell";
 import "./Grid.css";
 
-export const Grid = () => {
-  const { grid, timerCallback, level } = useStore();
+const OPACITY = [0.03, 1, 0.3]; // empty, lit, ghost
+const ROWS = [...Array(20).keys()];
+const COLS = [...Array(10).keys()];
 
-  useEffect(() => {
-    const intervalId = setInterval(timerCallback, 1000 - (level - 1) * 100);
-    return () => clearInterval(intervalId);
-  }, [level, timerCallback]);
+export const Grid = () => {
+  const cells = useGame((s) => s.view.cells);
+  const off = useGame((s) => s.view.mode === "off");
 
   return (
     <div className="grid-container">
-      {grid.map((row, i) => (
-        i > 3
-          ? (<div key={i} className="row">
-              {row.map((elem, index) => (
-                <GridCell key={index} opacity={elem ? 1 : 0.03} />
-              ))}
-            </div>)
-          : null
+      {ROWS.map((r) => (
+        <div key={r} className="row">
+          {COLS.map((c) => (
+            <GridCell key={c} opacity={off ? 0 : OPACITY[cells[r * 10 + c]]} />
+          ))}
+        </div>
       ))}
     </div>
   );

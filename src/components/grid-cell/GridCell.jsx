@@ -1,5 +1,3 @@
-/* eslint-disable react/prop-types */
-
 export const GridCell = ({ opacity = 0.03 }) => {
   return (
     <svg
