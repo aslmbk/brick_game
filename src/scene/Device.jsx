@@ -8,9 +8,11 @@ import { BUTTONS } from "../game/device";
 import { press, useGame } from "../game/store";
 import { continueFrames, requestFrame } from "./frame";
 import { createLcd } from "./lcd";
+// hashed file name; index.html preloads the same URL so the download starts before this script runs
+import MODEL_URL from "../assets/brick-game.glb?url";
 
-const MODEL_URL = "/tetris3.0.d.glb";
-const draco = new DRACOLoader().setDecoderPath("/draco/gltf/");
+// the folder is named after the three.js release the decoder ships with: rename it on upgrade (it is cached forever)
+const draco = new DRACOLoader().setDecoderPath("/draco/r155/");
 draco.preload(); // fetch the decoder while the model downloads
 
 // How far each button reaches for a tap and how deep it goes when pressed.
