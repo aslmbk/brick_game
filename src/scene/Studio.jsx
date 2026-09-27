@@ -4,7 +4,6 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Color, DoubleSide, Mesh, MeshBasicMaterial, PlaneGeometry, PMREMGenerator, Scene } from "three";
 import { useGame } from "../game/store";
-import { continueFrames, requestFrame } from "./frame";
 
 // Measured once from the model: vertical extent, half width and the front face.
 const FIT = { minY: -0.15, maxY: 7.95, halfW: 1.9, frontZ: 0.6 };
@@ -61,19 +60,19 @@ function buildEnvironment(gl) {
 function Environment({ epoch }) {
   const gl = useThree((s) => s.gl);
   const scene = useThree((s) => s.scene);
-  const get = useThree((s) => s.get);
+  const invalidate = useThree((s) => s.invalidate);
 
   // epoch changes after a lost WebGL context comes back: the old map is gone with it
   useLayoutEffect(() => {
     const target = buildEnvironment(gl);
     scene.environment = target.texture;
     gl.toneMappingExposure = EXPOSURE;
-    requestFrame(get());
+    invalidate();
     return () => {
       scene.environment = null;
       target.dispose();
     };
-  }, [gl, scene, get, epoch]);
+  }, [gl, scene, invalidate, epoch]);
 
   return null;
 }
@@ -82,7 +81,7 @@ function Camera() {
   const camera = useThree((s) => s.camera);
   const width = useThree((s) => s.size.width);
   const height = useThree((s) => s.size.height);
-  const get = useThree((s) => s.get);
+  const invalidate = useThree((s) => s.invalidate);
   const rig = useRef({ dist: 0, yaw: 0, pitch: 0, nx: 0, ny: 0 }).current;
 
   useLayoutEffect(() => {
@@ -92,20 +91,20 @@ function Camera() {
     camera.far = rig.dist * 2;
     camera.updateProjectionMatrix();
     place(camera, rig);
-    requestFrame(get());
-  }, [camera, width, height, get, rig]);
+    invalidate();
+  }, [camera, width, height, invalidate, rig]);
 
   useEffect(() => {
     const onMove = (e) => {
       if (e.pointerType !== "mouse") return;
       rig.nx = (e.clientX / window.innerWidth) * 2 - 1;
       rig.ny = (e.clientY / window.innerHeight) * 2 - 1;
-      if (leans()) requestFrame(get());
+      if (leans()) invalidate();
     };
     const onLeave = (e) => {
       if (e.relatedTarget) return;
       rig.nx = rig.ny = 0;
-      requestFrame(get());
+      invalidate();
     };
     window.addEventListener("pointermove", onMove);
     document.addEventListener("mouseout", onLeave);
@@ -113,7 +112,7 @@ function Camera() {
       window.removeEventListener("pointermove", onMove);
       document.removeEventListener("mouseout", onLeave);
     };
-  }, [get, rig]);
+  }, [invalidate, rig]);
 
   useFrame((state, delta) => {
     // the game itself requests frames on every mode change, so the camera eases back to centre
@@ -128,7 +127,7 @@ function Camera() {
       rig.yaw = yaw;
       rig.pitch = pitch;
     } else {
-      continueFrames(state);
+      state.invalidate();
     }
     place(state.camera, rig);
   });
